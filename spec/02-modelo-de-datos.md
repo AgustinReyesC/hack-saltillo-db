@@ -138,25 +138,35 @@ PK `(part_id, location_id)`; `on_hand`, `reserved`, `available` (generada = `on_
 
 ## 8. Extensiones del agente
 
+Cada **unidad física** se registra como una **instancia** independiente (buena o defectuosa),
+con su propio estado y recetario de reparación. Ej.: dos motores iguales = dos `part_instance`,
+aunque a uno le falte una banda y al otro un tornillo.
+
 ### `part_condition` — `condition_code` PK, `name`, `description`, `is_available`, `sort_order`.
 Valores sembrados: `new`, `functional`, `defective`, `under_repair`, `scrapped`.
 
-### `part_status` — `part_id` PK FK, `condition_code` FK, `work_order_id` FK (NULL), `note`,
-`updated_at`. **Estado actual** (una fila por pieza).
+### `part_instance` — `instance_id` PK, `part_id` FK (tipo de producto), `condition_code` FK,
+`location_id` FK, `work_order_id` FK, `inspection_item_id` FK, `serial_number`, `note`, timestamps.
+Una fila por unidad física.
 
-### `part_status_history` — `id` PK, `part_id` FK, `condition_code` FK, `work_order_id`,
-`note`, `changed_at`, `event_id`.
+### `part_instance_repair_tool` — PK `(instance_id, tool_id)`; `quantity`, `notes`.
+Herramientas necesarias para reparar **esa unidad**.
+
+### `part_instance_repair_component` — PK `(instance_id, component_part_id)`; `quantity`, `notes`.
+Repuestos que le faltan a **esa unidad** (banda, tornillo, …).
+
+### `part_status_history` — `id` PK, `part_id` FK, `instance_id` FK (NULL), `condition_code` FK,
+`work_order_id`, `note`, `changed_at`, `event_id`.
 
 ### `repair_tool` — `tool_id` PK, `code` UNIQUE, `name`, `description`, `active`.
-### `part_repair_tool` — PK `(part_id, tool_id)`; `quantity`, `notes`.
-### `part_repair_component` — PK `(part_id, component_part_id)`; `quantity`, `notes`.
 
 ## 9. Vistas
 
 | Vista | Qué resuelve |
 |---|---|
 | `v_part_availability` | Saldo total por pieza (`on_hand`, `reserved`, `available`). |
-| `v_part_agent_summary` | Pieza + estado + saldo + herramientas/faltantes (para el agente). |
+| `v_part_agent_summary` | Por tipo: cuántas unidades hay en cada estado + saldo. |
+| `v_part_instance_agent` | Por unidad: estado, `tools` (arreglo) y `missing_components`. |
 | `v_open_shortages` | Faltantes abiertos (con `work_order_code`). |
 | `v_unmatched_receipts` | Recepciones pendientes de relacionar. |
 | `v_reorder_suggestions` | Sugerencias vigentes. |

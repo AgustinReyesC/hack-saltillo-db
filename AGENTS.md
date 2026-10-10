@@ -50,8 +50,8 @@ La carpeta [`spec/`](spec/README.md) contiene el contexto de implementación com
 - Libro mayor: `movement`, `stock_balance`
 - Compromisos: `reservation`, `shortage`
 - Reabasto: `reorder_policy`, `reorder_suggestion`
-- Agente: `part_condition`, `part_status`, `part_status_history`, `repair_tool`, `part_repair_tool`, `part_repair_component`
-- Vistas: `v_part_availability`, `v_part_agent_summary`, `v_open_shortages`, `v_unmatched_receipts`, `v_reorder_suggestions`, `v_part_ledger`
+- Agente: `part_condition`, `part_instance`, `part_instance_repair_tool`, `part_instance_repair_component`, `part_status_history`, `repair_tool`
+- Vistas: `v_part_availability`, `v_part_agent_summary`, `v_part_instance_agent`, `v_open_shortages`, `v_unmatched_receipts`, `v_reorder_suggestions`, `v_part_ledger`
 
 ## Cómo levantar el entorno
 

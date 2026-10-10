@@ -7,6 +7,9 @@ databaseChangeLog:
   - include:
       file: 002_sample.sql
       relativeToChangelogFile: true
+  - include:
+      file: 003_part_instances.sql
+      relativeToChangelogFile: true
   # Catálogo real generado desde ../hackaton-inventarios/data/events.jsonl
   # (regenerar con: python scripts/generate_catalog_seed.py).
   - include:

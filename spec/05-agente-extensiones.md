@@ -1,9 +1,17 @@
-# 05 — Extensiones del agente: estado y reparación
+# 05 — Extensiones del agente: instancias, estado y reparación
 
 El contrato original no describe el estado de cada pieza ni cómo repararla. Estas tablas
-completan el modelo para que el **agente conversacional** pueda responder preguntas de negocio.
+completan el modelo para que el **agente conversacional** responda preguntas de negocio.
 
-## Estado de una pieza
+La clave del diseño: cada **unidad física** es una fila independiente (**instancia**), no el
+tipo de producto. Así dos motores iguales pueden estar en estados distintos y necesitar
+reparaciones distintas (a uno le falta una banda, al otro un tornillo).
+
+> Esto es una **capa aparte** del inventario: las instancias **no** modifican `movement` ni
+> `stock_balance`. El stock sigue siendo por cantidad; las instancias sirven para estado y
+> reparación.
+
+## Estado de una unidad
 
 Catálogo `part_condition` (sembrado):
 
@@ -15,8 +23,9 @@ Catálogo `part_condition` (sembrado):
 | `under_repair` | En reparación | FALSE | En banco de trabajo. |
 | `scrapped` | Descartado | FALSE | No reparable. |
 
-- `part_status`: **estado actual** de cada pieza (una fila por `part_id`).
-- `part_status_history`: cambios de estado a lo largo del tiempo.
+- `part_instance`: una fila por **unidad física**, con su `condition_code`, ubicación, orden y
+  opcionalmente `serial_number`.
+- `part_status_history`: cambios de estado a lo largo del tiempo (puede referir una instancia).
 
 ### ¿Quién escribe el estado?
 
@@ -24,47 +33,46 @@ Dos fuentes que conviven:
 
 1. **Derivado de inspecciones** (automático): un `inspection_item` con `condition = 'damaged'`
    y `action = 'repair'` implica que la pieza del equipo está defectuosa. Al aprobarse la
-   inspección se puede registrar en `part_status_history` (y opcionalmente actualizar
-   `part_status`).
-2. **Manual / del taller**: el agente o un operador ajusta `part_status` cuando una pieza pasa
-   a `under_repair`, `functional`, etc.
+   inspección se puede crear/actualizar la `part_instance` correspondiente y registrar el
+   cambio en `part_status_history`.
+2. **Manual / del taller**: el agente o un operador ajusta `part_instance.condition_code`
+   cuando una unidad pasa a `under_repair`, `functional`, etc.
 
-> Importante: **`condition`/`action` describen la pieza del equipo del cliente** (no stock del
-> taller). Si se quiere reflejar el estado del stock propio, se usa `part_status`.
+> `condition`/`action` de la inspección describen la **pieza del equipo del cliente**. La
+> `part_instance` permite reflejar también el estado del stock propio.
 
-## Recetario de reparación
+## Recetario de reparación (por unidad)
 
 - `repair_tool`: instrumentos del taller (prensa, extractor, micrómetro, balanceadora, horno…).
-- `part_repair_tool`: qué instrumentos y cuántos hacen falta para reparar una pieza.
-- `part_repair_component`: qué repuestos/piezas consume la reparación.
+- `part_instance_repair_tool`: qué instrumentos hacen falta para reparar **esa unidad**.
+- `part_instance_repair_component`: qué repuestos le faltan a **esa unidad** (banda, tornillo).
 
-Así, a una pieza defectuosa se le puede contestar *"para repararla necesitas X, Y y Z"*.
+La vista `v_part_instance_agent` expone `tools` (arreglo de nombres) y `missing_components`,
+que es el "campo de herramientas necesarias" pedido.
 
 ## Preguntas típicas del agente
 
+### ¿Qué unidades defectuosas hay y con qué se reparan?
+```sql
+SELECT instance_id, sku, name, condition_name, tools, missing_components, serial_number
+FROM v_part_instance_agent
+WHERE condition_code IN ('defective', 'under_repair')
+ORDER BY name, instance_id;
+```
+
 ### ¿Tengo la pieza X? (sí / no)
 ```sql
-SELECT part_id, sku, name, on_hand, reserved, available
-FROM v_part_availability
+SELECT part_id, sku, name, on_hand, reserved, available, defective_units, functional_units
+FROM v_part_agent_summary
 WHERE sku ILIKE :q OR name ILIKE :q;
 ```
-Respuesta: `available > 0` → **sí, la tengo**; si `on_hand = 0` → **no la tengo**.
 
-### ¿Tengo piezas defectuosas que se puedan arreglar?
+### ¿Qué herramientas necesita la unidad 900001?
 ```sql
-SELECT part_id, name, condition_name, repair_tools_count, repair_components_count
-FROM v_part_agent_summary
-WHERE condition_code IN ('defective', 'under_repair')
-ORDER BY repair_tools_count DESC;
-```
-
-### ¿Con qué se repara la pieza X?
-```sql
-SELECT p.name AS pieza, t.name AS instrumento, prt.quantity, prt.notes
-FROM part p
-JOIN part_repair_tool prt ON prt.part_id = p.part_id
-JOIN repair_tool t        ON t.tool_id = prt.tool_id
-WHERE p.part_id = :part_id
+SELECT t.name AS instrumento, rt.quantity, rt.notes
+FROM part_instance_repair_tool rt
+JOIN repair_tool t ON t.tool_id = rt.tool_id
+WHERE rt.instance_id = :instance_id
 ORDER BY t.name;
 ```
 
@@ -81,7 +89,8 @@ SELECT * FROM v_reorder_suggestions;
 ## Reglas de respuesta sugeridas
 
 - Distinguir **existencia** (`on_hand`) de **disponible** (`available = on_hand - reserved`).
-- Si el resultado es ambiguo (varias piezas con el mismo `sku`, muy común en este dataset),
-  **pedir al usuario que elija** en lugar de adivinar.
+- Hablar de **unidades** (instancias), no de tipos: "tienes 2 motores: 1 funcional y 1
+  defectuoso al que le falta la banda".
+- Si el resultado es ambiguo (varias piezas con el mismo `sku`), pedir al usuario que elija.
+- Una unidad `defective`/`under_repair` **no** cuenta como disponible.
 - Si la pieza es `SERVICIO`, aclarar que no se inventaría.
-- Una pieza `defective`/`under_repair` no cuenta como disponible.

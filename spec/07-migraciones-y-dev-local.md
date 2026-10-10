@@ -75,8 +75,9 @@ la muestra y el catálogo generado llevan `context:seed`.
 ## Datos semilla
 
 - `seed/001_reference.sql`: unidades y catálogo de estados (siempre).
-- `seed/002_sample.sql`: proveedores, herramientas, piezas de demostración y su recetario
-  (contexto `seed`).
+- `seed/002_sample.sql`: proveedores, herramientas y piezas de demostración (contexto `seed`).
+- `seed/003_part_instances.sql`: instancias/unidades físicas de ejemplo y su recetario de
+  reparación (dos motores con daños distintos), contexto `seed`.
 - `seed/099_catalog_generated.sql`: **generado** desde el kit. No editar a mano.
 
 ### Regenerar el catálogo real

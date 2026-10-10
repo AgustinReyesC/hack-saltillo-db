@@ -30,6 +30,9 @@ databaseChangeLog:
   - include:
       file: changes/010_views.sql
       relativeToChangelogFile: true
+  - include:
+      file: changes/011_part_instances.sql
+      relativeToChangelogFile: true
 
   # --- Datos de referencia y de ejemplo (contexto `seed`) --------------------
   - include:

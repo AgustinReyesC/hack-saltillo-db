@@ -14,10 +14,12 @@ El diseño parte del contrato del kit `hackaton-inventarios`:
 - **API**: saldos, kardex, materiales de orden, faltantes, sugerencias, recepciones sin
   relacionar, salidas, transferencias y conteos.
 
-Además de lo que exige el contrato, este esquema agrega lo necesario para el **agente**:
-estado de cada pieza (**funcional / defectuoso / en reparación**) y su **recetario de
-reparación** (instrumentos y repuestos), más un catálogo completo de **proveedores y órdenes
-de compra**.
+Además de lo que exige el contrato, este esquema agrega lo necesario para el **agente**: cada
+**unidad física** (instancia) se registra como una fila independiente, con su estado
+(**funcional / defectuoso / en reparación**) y su **recetario de reparación** (instrumentos y
+repuestos faltantes). Un mismo producto puede tener varias unidades con daños distintos (ej.
+dos motores: a uno le falta una banda y al otro un tornillo). Más un catálogo completo de
+**proveedores y órdenes de compra**.
 
 ## Requisitos
 
@@ -194,39 +196,40 @@ El stock **nunca** se edita directo: se recalcula sumando movimientos.
 `reorder_policy` (mínimo/máximo/reorden/lead time) y `reorder_suggestion`.
 
 ### Extensiones del agente
+Cada **unidad física** es una fila independiente (buena o defectuosa), con su propio estado y
+recetario de reparación.
+
 | Tabla | Para qué |
 |---|---|
 | `part_condition` | Catálogo de estados: `new`, `functional`, `defective`, `under_repair`, `scrapped`. |
-| `part_status` | Estado **actual** de cada pieza (una fila por pieza). |
-| `part_status_history` | Historial de cambios de estado. |
+| `part_instance` | **Instancia**: una unidad física (ej. dos motores = dos filas). |
+| `part_instance_repair_tool` | Herramientas necesarias para reparar **esa unidad**. |
+| `part_instance_repair_component` | Repuestos que le faltan a **esa unidad** (banda, tornillo). |
+| `part_status_history` | Historial de cambios de estado (opcionalmente por instancia). |
 | `repair_tool` | Instrumentos/herramientas del taller. |
-| `part_repair_tool` | Qué instrumentos y cuántos hacen falta para reparar una pieza. |
-| `part_repair_component` | Repuestos/piezas que consume la reparación. |
 
 ### Vistas de apoyo
-`v_part_availability`, `v_part_agent_summary`, `v_open_shortages`, `v_unmatched_receipts`,
-`v_reorder_suggestions`, `v_part_ledger`.
+`v_part_availability`, `v_part_agent_summary`, `v_part_instance_agent`, `v_open_shortages`,
+`v_unmatched_receipts`, `v_reorder_suggestions`, `v_part_ledger`.
 
 ## Consultas del agente
 
-¿Tengo una pieza y en qué estado está?
+¿Tengo una pieza y en qué estado están sus unidades?
 
 ```sql
-SELECT part_id, sku, name, condition_name, on_hand, reserved, available, repair_tools_count
+SELECT part_id, sku, name, on_hand, reserved, available,
+       defective_units, under_repair_units, functional_units, total_units
 FROM v_part_agent_summary
 WHERE sku ILIKE '%7014%' OR name ILIKE '%rodamiento%';
 ```
 
-¿Qué piezas defectuosas se pueden reparar y con qué?
+¿Qué unidades defectuosas hay y con qué se reparan? (`tools` es el campo pedido)
 
 ```sql
-SELECT p.part_id, p.name, t.name AS instrumento, prt.quantity, prt.notes
-FROM part_status s
-JOIN part p              ON p.part_id = s.part_id
-JOIN part_repair_tool prt ON prt.part_id = p.part_id
-JOIN repair_tool t        ON t.tool_id = prt.tool_id
-WHERE s.condition_code = 'defective'
-ORDER BY p.part_id, t.name;
+SELECT instance_id, sku, name, condition_name, tools, missing_components, serial_number
+FROM v_part_instance_agent
+WHERE condition_code = 'defective'
+ORDER BY name, instance_id;
 ```
 
 ## Regenerar el catálogo real
