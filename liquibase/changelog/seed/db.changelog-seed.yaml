@@ -1,0 +1,14 @@
+databaseChangeLog:
+  # Datos de referencia: siempre se aplican (condiciones y unidades).
+  - include:
+      file: 001_reference.sql
+      relativeToChangelogFile: true
+  # Datos de ejemplo: solo con el contexto `seed` activo.
+  - include:
+      file: 002_sample.sql
+      relativeToChangelogFile: true
+  # Catálogo real generado desde ../hackaton-inventarios/data/events.jsonl
+  # (regenerar con: python scripts/generate_catalog_seed.py).
+  - include:
+      file: 099_catalog_generated.sql
+      relativeToChangelogFile: true

@@ -1,0 +1,37 @@
+databaseChangeLog:
+  # --- Esquema base ---------------------------------------------------------
+  - include:
+      file: changes/001_eventing.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/002_catalog.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/003_work_orders.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/004_inspections.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/005_purchasing.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/006_ledger.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/007_commitments.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/008_replenishment.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/009_agent_status_repair.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/010_views.sql
+      relativeToChangelogFile: true
+
+  # --- Datos de referencia y de ejemplo (contexto `seed`) --------------------
+  - include:
+      file: seed/db.changelog-seed.yaml
+      relativeToChangelogFile: true

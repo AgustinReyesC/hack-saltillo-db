@@ -1,0 +1,23 @@
+# Entorno local
+.env
+
+# Datos de Postgres (si se monta el volumen en el repo)
+pgdata/
+*.sql.gz
+
+# Liquibase
+liquibase/*.log
+liquibase/changelog/**/*.log
+liquibase/lib/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

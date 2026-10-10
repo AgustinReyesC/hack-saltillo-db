@@ -1,0 +1,52 @@
+# Base de datos local del servicio de inventario (almacén inteligente para taller).
+#
+#   cp .env.example .env
+#   docker compose up -d            # levanta Postgres y aplica esquema + seeds con Liquibase
+#   docker compose logs -f liquibase
+#
+# Postgres queda en localhost:${POSTGRES_PORT} (5432 por defecto).
+# Para volver a empezar de cero:  docker compose down -v && docker compose up -d
+
+name: hack-saltillo-db
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: saltillo-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-inventario}
+      POSTGRES_USER: ${POSTGRES_USER:-inventario}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inventario}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-inventario} -d ${POSTGRES_DB:-inventario}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  liquibase:
+    build:
+      context: ./liquibase
+    container_name: saltillo-liquibase
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-inventario}
+      LIQUIBASE_COMMAND_USERNAME: ${POSTGRES_USER:-inventario}
+      LIQUIBASE_COMMAND_PASSWORD: ${POSTGRES_PASSWORD:-inventario}
+      LIQUIBASE_COMMAND_CHANGELOG_FILE: db.changelog-master.yaml
+      LIQUIBASE_SEARCH_PATH: /liquibase/changelog
+      LIQUIBASE_CONTEXTS: ${LIQUIBASE_CONTEXTS:-seed}
+      LIQUIBASE_LOG_LEVEL: ${LIQUIBASE_LOG_LEVEL:-info}
+    volumes:
+      - ./liquibase/changelog:/liquibase/changelog:ro
+    command: ["update"]
+    restart: "no"
+
+volumes:
+  pgdata:
