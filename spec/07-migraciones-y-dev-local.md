@@ -3,13 +3,41 @@
 ## Levantar el entorno
 
 ```bash
-copy .env.example .env      # PowerShell;  cp en bash
+cp .env.example .env
 docker compose up -d        # Postgres 16 + Liquibase (esquema + seeds)
 docker compose logs -f liquibase
 docker compose exec postgres psql -U inventario -d inventario
 ```
 
 Conexión por defecto: `localhost:5432`, DB/usuario/clave `inventario`.
+
+### WSL2 con Docker Engine
+
+Corre los comandos desde WSL, usando Docker Engine y Docker Compose v2 disponibles en esa
+distribución. Se recomienda guardar `hack-saltillo-db` y el kit `hackaton-inventarios` en el
+sistema de archivos Linux de WSL, como repositorios hermanos bajo `~/src/`:
+
+```bash
+cd ~/src/hack-saltillo-db
+docker info
+docker compose version
+cp .env.example .env
+python3 scripts/generate_catalog_seed.py --events ../hackaton-inventarios/data/events.jsonl
+docker compose up --build -d
+docker compose logs --follow liquibase
+```
+
+El generador Python no requiere paquetes externos y **no escribe directamente en PostgreSQL**:
+lee `events.jsonl` y produce `liquibase/changelog/seed/099_catalog_generated.sql`. Al iniciar
+con Liquibase, ese SQL se aplica junto con el esquema y los otros seeds. Sin el kit
+`hackaton-inventarios`, se puede omitir la generación y usar el SQL ya incluido.
+
+Cuando Liquibase termine, verifica el resultado:
+
+```bash
+docker compose exec postgres psql -U inventario -d inventario -c "SELECT count(*) FROM part;"
+docker compose exec postgres psql -U inventario -d inventario -c "SELECT count(*) FROM location;"
+```
 
 Para volver a empezar de cero (borra el volumen):
 
@@ -58,12 +86,16 @@ la muestra y el catálogo generado llevan `context:seed`.
 163 líneas de BOM):
 
 ```bash
-python scripts/generate_catalog_seed.py
-python scripts/generate_catalog_seed.py --events "..\..\hackaton-inventarios\data\events.jsonl"
+python3 scripts/generate_catalog_seed.py
+python3 scripts/generate_catalog_seed.py --events ../hackaton-inventarios/data/events.jsonl
 ```
 
 El script deduplica `part.upserted`, `location.upserted` y `bom.upserted` (se queda con la
 última versión de cada entidad) y escribe INSERT con `ON CONFLICT` (idempotente).
+Ejecuta el generador **antes** del primer `docker compose up`: el archivo generado forma parte
+del changelog y Liquibase valida su checksum. No lo regeneres con contenido distinto después de
+que esos changesets hayan sido aplicados a esa base; agrega una migración nueva para cambios
+posteriores.
 
 ## Validar sin Docker
 

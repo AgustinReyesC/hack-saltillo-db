@@ -21,8 +21,8 @@ de compra**.
 
 ## Requisitos
 
-- Docker + Docker Compose (Docker Desktop en Windows/macOS). **Único requisito** para el
-  camino recomendado.
+- Docker Engine + Docker Compose v2 (Docker Desktop o Docker Engine en WSL2). **Único
+  requisito** para el camino recomendado.
 - Opcional: Python 3.10+ (para regenerar el catálogo con
   `scripts/generate_catalog_seed.py`).
 - Opcional: Liquibase CLI + un PostgreSQL ya existente, si no quieres usar Docker.
@@ -75,6 +75,49 @@ docker compose exec postgres psql -U inventario -d inventario -c "SELECT count(*
 
 La conexión queda disponible en `localhost:5432` con
 usuario/clave/base `inventario`/`inventario`/`inventario`.
+
+### Ejecutarlo desde WSL2 con Docker Engine
+
+Ejecuta estos comandos dentro de la distribución WSL donde está disponible tu Docker Engine.
+Para evitar problemas de rendimiento y de montaje de archivos, guarda ambos repositorios en el
+sistema de archivos Linux de WSL, por ejemplo:
+
+```text
+~/src/hack-saltillo-db/
+~/src/hackaton-inventarios/data/events.jsonl
+```
+
+Desde la raíz de `hack-saltillo-db`, genera primero el SQL del catálogo y luego inicia los
+contenedores:
+
+```bash
+docker info
+docker compose version
+cp .env.example .env
+python3 scripts/generate_catalog_seed.py --events ../hackaton-inventarios/data/events.jsonl
+docker compose up --build -d
+docker compose logs --follow liquibase
+```
+
+`docker info` y `docker compose version` deben funcionar desde WSL antes de comenzar. El
+script de Python solo genera `liquibase/changelog/seed/099_catalog_generated.sql`; no se
+conecta a PostgreSQL. Liquibase carga ese SQL automáticamente durante el primer arranque.
+Python 3 no necesita paquetes externos para ejecutar el generador.
+
+Comprueba que Liquibase terminó y que hay registros cargados:
+
+```bash
+docker compose ps --all
+docker compose exec postgres psql -U inventario -d inventario -c "SELECT count(*) AS parts FROM part;"
+docker compose exec postgres psql -U inventario -d inventario -c "SELECT count(*) AS locations FROM location;"
+```
+
+Si no tienes el repositorio `hackaton-inventarios`, puedes omitir el comando Python y usar el
+SQL generado que ya está incluido en este repositorio. Si la base ya fue inicializada y el
+generador cambia un changeset que Liquibase aplicó, no vuelvas a ejecutarlo sobre esa misma
+base: Liquibase reportará un checksum distinto. Para datos nuevos, crea una migración nueva;
+para descartar una base local y reconstruirla, `docker compose down -v` elimina
+permanentemente su volumen.
 
 **5. Reiniciar desde cero** (borra el volumen de datos y reaplica todo)
 
