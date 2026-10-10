@@ -310,6 +310,23 @@ terraform init && terraform apply
 Salidas para el ECS: `vpc_id`, `private_subnet_ids`, `app_security_group_id`, `db_address`.
 Detalle en [`terraform/README.md`](terraform/README.md).
 
+### Conexión con la API (us-east-1)
+
+La API (`hack-saltillo-api`, ECS Fargate) ya está conectada a esta RDS. Lo que usa, y dónde vive en
+el repo de la API (variables de GitHub Actions → Terraform):
+
+| Variable de la API | Valor |
+| --- | --- |
+| `DATABASE_HOST` | `hack-saltillo-db-dev-postgres.c8ro0csgiapy.us-east-1.rds.amazonaws.com` |
+| `DATABASE_NAME` / `DATABASE_USER` | `inventario` / `inventario` |
+| `DATABASE_PASSWORD_SECRET_ARN` | Secreto que administra RDS (`rds!db-…`), campo `password` |
+| `DATABASE_SECURITY_GROUP_ID` | `sg-05113243673fcedaa` (`hack-saltillo-db-dev-rds`) |
+
+La API despliega sus tareas en las subredes públicas de esta VPC y su Terraform agrega la regla
+`5432` del SG de sus tareas al SG de la RDS. Si recreas la RDS o la VPC, actualiza esas variables
+en el repo de la API. Como la RDS es privada, Liquibase se corre desde dentro de la VPC
+(ver [`terraform/README.md`](terraform/README.md#migraciones-liquibase)).
+
 ## Estado y pendientes
 
 - El despliegue en AWS usa **Terraform (RDS PostgreSQL)**; ver [`terraform/`](terraform/README.md).
