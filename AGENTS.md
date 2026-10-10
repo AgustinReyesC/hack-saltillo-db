@@ -47,11 +47,13 @@ La carpeta [`spec/`](spec/README.md) contiene el contexto de implementación com
 - Catálogo: `unit`, `part`, `location`, `model`, `model_line`
 - Taller: `work_order`, `work_order_stage`, `inspection`, `inspection_item`
 - Compras: `supplier`, `purchase_request`, `purchase_order`, `purchase_line`, `unmatched_receipt`
-- Libro mayor: `movement`, `stock_balance`
-- Compromisos: `reservation`, `shortage`
+- Libro mayor: `movement` (inmutable) y `stock_balance` (proyección, `on_hand` = suma de movimientos vía trigger)
+- Compromisos: `reservation`, `shortage`, `work_order_need`
 - Reabasto: `reorder_policy`, `reorder_suggestion`
 - Agente: `part_condition`, `part_instance`, `part_instance_repair_tool`, `part_instance_repair_component`, `part_status_history`, `repair_tool`
-- Vistas: `v_part_availability`, `v_part_agent_summary`, `v_part_instance_agent`, `v_open_shortages`, `v_unmatched_receipts`, `v_reorder_suggestions`, `v_part_ledger`
+- Vistas: `v_part_availability`, `v_part_agent_summary`, `v_part_instance_agent`, `v_open_shortages`, `v_unmatched_receipts`, `v_reorder_suggestions`, `v_part_ledger`, `v_sku_matches`
+- Funciones: `match_part_by_sku(text)` (relación de compras)
+- Integridad: triggers de inmutabilidad de `movement`, proyección de `stock_balance` y guarda `reserved <= on_hand`
 
 ## Cómo levantar el entorno
 

@@ -34,6 +34,12 @@ variable "admin_cidrs" {
   default     = []
 }
 
+variable "publicly_accessible" {
+  description = "Da IP pública a la RDS. Déjalo en false (privada). Actívalo true SOLO temporalmente para correr migraciones desde tu laptop; luego vuelve a false."
+  type        = bool
+  default     = false
+}
+
 variable "db_name" {
   description = "Nombre de la base inicial."
   type        = string

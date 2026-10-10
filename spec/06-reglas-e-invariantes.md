@@ -10,13 +10,23 @@ Invariantes que el esquema asume y que el consumidor/API **deben** respetar.
 ## Sin stock negativo
 - `available = on_hand - reserved` nunca debe bajar de 0 por una **reserva** ni por una
   **salida**. Lo garantiza la app al calcular `min(available, necesidad)` y al validar salidas
-  (409 si no alcanza).
+  (409 si no alcanza); además, la BD tiene la guarda `reserved <= on_hand`
+  (`trg_stock_balance_reserved_guard`).
 - **Excepción**: `POST /counts` (conteo cíclico autorizado) es la única operación que puede
-  dejar `available` negativo. Por eso no hay `CHECK (available >= 0)` en `stock_balance`.
+  dejar `available` negativo. Por eso no hay `CHECK (available >= 0)` en `stock_balance`, y la
+  guarda de `reserved` no se dispara cuando `on_hand` baja por un ajuste.
+
+## Integridad en la base (triggers)
+- `movement` es **inmutable**: `trg_movement_immutable` rechaza `UPDATE`/`DELETE`.
+- `stock_balance.on_hand` lo calcula `trg_movement_apply_balance` = **suma** de `movement`.
+  La app **no** debe escribir `on_hand`; solo administra `reserved`.
+- `reserved <= on_hand`: `trg_stock_balance_reserved_guard` (evita sobre-reservar la última
+  pieza). El consumidor además debe tomar la fila con `SELECT ... FOR UPDATE` para la carrera
+  de concurrencia.
 
 ## Necesidad que se reemplaza (no se suma)
-- La necesidad vive por **(work_order, bom_line_id)** y la fija la última aprobación que trae
-  esa línea.
+- La necesidad vive por **(work_order, bom_line_id)** en `work_order_need` y la fija la última
+  aprobación que trae esa línea.
 - Si sube → reservar la diferencia; si baja → liberar el excedente.
 - Una línea que una aprobación posterior **no menciona** conserva su necesidad.
 - `inspection.full` con `items: []` no cambia nada.

@@ -21,6 +21,13 @@ repuestos faltantes). Un mismo producto puede tener varias unidades con daños d
 dos motores: a uno le falta una banda y al otro un tornillo). Más un catálogo completo de
 **proveedores y órdenes de compra**.
 
+## Documentación
+
+- [`DECISIONES.md`](DECISIONES.md) — documento de decisiones (compras↔catálogo, kits, reservas
+  dobles, idempotencia).
+- [`AGENTS.md`](AGENTS.md) — contexto para agentes; [`spec/`](spec/README.md) — contexto de
+  implementación detallado.
+
 ## Requisitos
 
 - Docker Engine + Docker Compose v2 (Docker Desktop o Docker Engine en WSL2). **Único
@@ -187,16 +194,25 @@ estado `pending|resolved`).
 
 ### Libro mayor
 `movement` es **inmutable** (`receipt|issue|transfer_out|transfer_in|adjustment`, cantidad
-con signo). `stock_balance` es la **proyección** por `(part_id, location_id)` con
-`on_hand`, `reserved` y `available` (columna generada `on_hand - reserved`).
-El stock **nunca** se edita directo: se recalcula sumando movimientos.
+con signo) y lleva trazabilidad para derivar los eventos de salida: `work_order_id`, `issued_by`,
+`purchase_line_id` y `transfer_group_id` (empareja `transfer_out`/`transfer_in`).
+`stock_balance` es la **proyección** por `(part_id, location_id)` con `on_hand`, `reserved` y
+`available` (columna generada `on_hand - reserved`).
+
+**Integridad en BD**:
+- `on_hand` **siempre** es la suma de `movement` (trigger `trg_movement_apply_balance`): la app
+  **no** escribe `on_hand`, solo `reserved`.
+- `movement` es **inmutable** (trigger `trg_movement_immutable`): un error se corrige con otro
+  movimiento.
+- `reserved` no puede superar `on_hand` (trigger `trg_stock_balance_reserved_guard`).
 
 > El conteo cíclico (`POST /counts`) es la única operación que puede dejar `available`
 > negativo, por eso **no** hay `CHECK (available >= 0)`; esa regla la aplica la app en
-> reservas y salidas.
+> reservas y salidas (y la guarda de `reserved`).
 
 ### Compromisos y reabasto
 `reservation` (`active|fulfilled|cancelled`), `shortage` (`open|closed`),
+`work_order_need` (necesidad vigente por **(orden, `bom_line_id`)**, que se reemplaza),
 `reorder_policy` (mínimo/máximo/reorden/lead time) y `reorder_suggestion`.
 
 ### Extensiones del agente
@@ -214,7 +230,8 @@ recetario de reparación.
 
 ### Vistas de apoyo
 `v_part_availability`, `v_part_agent_summary`, `v_part_instance_agent`, `v_open_shortages`,
-`v_unmatched_receipts`, `v_reorder_suggestions`, `v_part_ledger`.
+`v_unmatched_receipts`, `v_reorder_suggestions`, `v_part_ledger`, `v_sku_matches`.
+Función `match_part_by_sku(text)` para relacionar compras.
 
 ## Consultas del agente
 

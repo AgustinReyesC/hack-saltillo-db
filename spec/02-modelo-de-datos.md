@@ -108,17 +108,23 @@ identificar), `name`, `group_name`, `condition` (`ok`/`damaged`/`missing`),
 ### `movement` (inmutable)
 `movement_id` PK, `type` (`receipt`/`issue`/`transfer_out`/`transfer_in`/`adjustment`),
 `part_id` FK, `location_id` FK, `quantity` (con signo, `<> 0`), `unit_cost`, `currency`,
-`reference`, `occurred_at`, `event_id`.
+`reference`, `occurred_at`, `event_id`, y trazabilidad para los eventos de salida:
+`work_order_id` FK, `issued_by` (texto), `purchase_line_id` FK y `transfer_group_id` (agrupa
+`transfer_out`+`transfer_in`).
 
 Signo: `receipt` +, `issue` −, `transfer_out` −, `transfer_in` +, `adjustment` = delta (puede
-ser ±).
+ser ±). **Inmutable** vía trigger `trg_movement_immutable`.
 
 ### `stock_balance` (proyección)
 PK `(part_id, location_id)`; `on_hand`, `reserved`, `available` (generada = `on_hand - reserved`),
 `updated_at`.
 
-> **No** hay `CHECK (available >= 0)`: el conteo cíclico autorizado puede dejarlo negativo.
-> La app garantiza no negativo en reservas y salidas.
+- `on_hand` lo mantiene el trigger `trg_movement_apply_balance` (= suma de `movement`). La app
+  **no** escribe `on_hand`; solo `reserved`.
+- `reserved` no puede superar `on_hand` (trigger `trg_stock_balance_reserved_guard`).
+
+> **No** hay `CHECK (available >= 0)`: el conteo cíclico autorizado puede dejarlo negativo
+> (la guarda de `reserved` no aplica cuando `on_hand` baja por un ajuste).
 
 ## 6. Compromisos
 
@@ -130,6 +136,11 @@ PK `(part_id, location_id)`; `on_hand`, `reserved`, `available` (generada = `on_
 `shortage_id` PK, `work_order_id` FK, `part_id` FK (NULL = sin identificar), `name`,
 `missing_quantity` (NULL), `inspection_item_id` FK, `status` (`open`/`closed`),
 `opened_at`, `closed_at`.
+
+### `work_order_need`
+PK `(work_order_id, bom_line_id)`; `part_id` FK, `quantity` (NULL = no determinada),
+`inspection_item_id` FK, `updated_at`. Necesidad **vigente** por línea; cada aprobación la
+**reemplaza**.
 
 ## 7. Reabasto
 
@@ -171,3 +182,14 @@ Repuestos que le faltan a **esa unidad** (banda, tornillo, …).
 | `v_unmatched_receipts` | Recepciones pendientes de relacionar. |
 | `v_reorder_suggestions` | Sugerencias vigentes. |
 | `v_part_ledger` | Movimientos con saldo corrido por pieza. |
+| `v_sku_matches` | `sku_norm` → `part_ids`, `match_count` (para relación de compras y skus ambiguos). |
+
+Función `match_part_by_sku(text)` → `part_id` si hay exactamente una coincidencia; `NULL` si no
+coincide o es ambiguo.
+
+## 10. Restricciones de dominio
+
+`work_order.department/stage`, `work_order_stage.from_stage/to_stage`, `inspection.kind/status`,
+`inspection_item.condition/action`, `purchase_line.purpose/match_status`,
+`unmatched_receipt.status`, `movement.type`, `reservation.status`, `shortage.status` y
+`event_inbox.status` tienen `CHECK` con los valores del contrato (migración `014`).

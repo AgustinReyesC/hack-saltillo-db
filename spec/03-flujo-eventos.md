@@ -79,8 +79,9 @@ evento de salida encolar en `outbox_event`. Siempre: primero insertar en `event_
       `stock.unmatched_receipt` (`key = "purchase_line:<id>"`).
   - Si coincide con exactamente una:
     - `purchase_line.part_id`, `match_status = 'matched'`.
-    - Registrar `movement` `receipt` (+) en la ubicación de recepción **`U-100`
-      (`location_id = 100`)** y actualizar `stock_balance.on_hand`.
+- Registrar `movement` `receipt` (+) en la ubicación de recepción **`U-100`
+  (`location_id = 100`)** con `purchase_line_id` y `unit_cost`/`currency`. El trigger
+  `trg_movement_apply_balance` actualiza `stock_balance.on_hand` (la app **no** lo escribe).
     - Encolar `stock.received` (`key = "part:<id>"`).
     - Surtir faltantes de esa pieza: primero los de la orden en `work_order_code` (si sigue
       viva) y luego los demás, del más viejo al más nuevo. Cada faltante surtido:
@@ -88,11 +89,11 @@ evento de salida encolar en `outbox_event`. Siempre: primero insertar en `event_
 
 ## Comandos HTTP (los ejecuta la API, no llegan por Kafka)
 
-- `POST /issues`: `movement` `issue` (−), consume primero la `reservation` de esa orden para
-  esa pieza; si queda completa → `status = 'fulfilled'`. Encola `stock.issued`.
-  Si no alcanza `on_hand` en la ubicación → **409**, no mueve nada.
-- `POST /transfers`: `movement` `transfer_out` (−) y `transfer_in` (+). Encola
-  `stock.transferred`.
+- `POST /issues`: `movement` `issue` (−) con `work_order_id` e `issued_by`, consume primero la
+  `reservation` de esa orden para esa pieza; si queda completa → `status = 'fulfilled'`. Encola
+  `stock.issued`. Si no alcanza `on_hand` en la ubicación → **409**, no mueve nada.
+- `POST /transfers`: `movement` `transfer_out` (−) y `transfer_in` (+) con el **mismo**
+  `transfer_group_id`. Encola `stock.transferred`.
 - `POST /counts`: un `movement` `adjustment` por diferencia con `reason` obligatorio. Encola
   `stock.adjusted`. Es la única operación que puede dejar `available` negativo.
 - `POST /unmatched-receipts/{id}/resolve`: registra la entrada como si hubiera coincidido

@@ -33,6 +33,21 @@ databaseChangeLog:
   - include:
       file: changes/011_part_instances.sql
       relativeToChangelogFile: true
+  - include:
+      file: changes/012_movement_traceability.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/013_work_order_need.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/014_domain_checks.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/015_integrity_triggers.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/016_sku_matching.sql
+      relativeToChangelogFile: true
 
   # --- Datos de referencia y de ejemplo (contexto `seed`) --------------------
   - include:

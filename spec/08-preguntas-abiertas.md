@@ -11,6 +11,10 @@
 | Reparación | Recetario **por unidad**: `repair_tool` + `part_instance_repair_tool` + `part_instance_repair_component`. |
 | Unidades independientes | Cada unidad física es una fila (buenas y defectuosas). Ej.: 2 motores = 2 filas, aunque a uno le falte una banda y al otro un tornillo. |
 | Relación con stock | Las instancias son una **capa aparte**: no modifican `movement` ni `stock_balance`. |
+| Integridad del libro mayor | `movement` **inmutable** y `stock_balance.on_hand` = **suma** de movimientos, vía triggers (`015`). |
+| Relación compras↔catálogo | `part.sku_norm` + función `match_part_by_sku(text)` + vista `v_sku_matches`; **>1 coincidencia = ambiguo** → revisión manual. |
+| Kits | Se inventaría cada **componente**; el kit es agrupación de presentación (ver [`DECISIONES.md`](../DECISIONES.md)). |
+| Necesidad | Persistida en `work_order_need` por **(work_order, bom_line_id)**; se **reemplaza**. |
 | Despliegue | **Solo local** por ahora; AWS/RDS queda para después. |
 | Idioma | Tablas/columnas en inglés (como el contrato); documentación en español. |
 
@@ -28,9 +32,8 @@ política de sincronización** entre la inspección y las instancias (ver abajo)
    ¿El consumidor debe además aplicar `part.upserted` en vivo? (Sí, según el contrato; el seed
    es solo para desarrollo/demo.) Confirmar que la semilla no pisa cambios de runtime.
 
-2. **Kits.** El contrato deja libre si se inventaría el kit, sus componentes o ambos. Hoy
-   `model_line.group_name` permite agrupar. ¿Qué política se documenta en el *documento de
-   decisiones*?
+2. **Kits.** **Resuelto** en [`DECISIONES.md`](../DECISIONES.md): se inventaría cada componente;
+   el kit es agrupación de presentación por `model_line.group_name` (o `name`).
 
 3. **Familia `SERVICIO`.** Aparece en listas de partes con `action = buy`. Se marcó
    `part.is_service`. ¿Se inventaría o se trata como no inventariable?
@@ -44,21 +47,20 @@ política de sincronización** entre la inspección y las instancias (ver abajo)
    escaneo) y cuándo se crean (recepción, inspección, alta manual)? Hoy `serial_number` es libre.
    Definir si se autogenera un código de instancia y su etiqueta.
 
-5. **Proveedor en el evento.** `purchase.item_received` no trae proveedor. ¿De dónde se llena
+6. **Proveedor en el evento.** `purchase.item_received` no trae proveedor. ¿De dónde se llena
    `supplier_id`? Opciones: mapeo manual `part_number` → proveedor, catálogo externo, o dejarlo
    nulo salvo que otro proceso lo complete.
 
-6. **Mantenimiento de `stock_balance`.** Hoy no hay triggers: el consumidor/API lo actualiza.
-   ¿Se prefiere un trigger sobre `movement` para que la proyección sea automática e
-   imposible de desincronizar? (Evaluar rendimiento con el volumen del dataset.)
+7. **Mantenimiento de `stock_balance`.** **Resuelto**: el trigger `trg_movement_apply_balance`
+   mantiene `on_hand` = suma de `movement`; la app solo administra `reserved` (`015`).
 
-7. **`v_work_order_materials`.** No se creó una vista para materiales por orden porque depende
+8. **`v_work_order_materials`.** No se creó una vista para materiales por orden porque depende
    de la lógica de necesidad vigente/reemplazo. ¿Conviene una vista o se resuelve en la API?
 
-8. **Importes.** Se guardan `NUMERIC(14,2)`; la API los expone como texto decimal. Confirmar
+9. **Importes.** Se guardan `NUMERIC(14,2)`; la API los expone como texto decimal. Confirmar
    redondeo y moneda por defecto (`MXN`).
 
-9. **Despliegue AWS.** Resuelto con Terraform: `terraform/` crea una **VPC compartida** y una
+10. **Despliegue AWS.** Resuelto con Terraform: `terraform/` crea una **VPC compartida** y una
    **RDS PostgreSQL privada**; la app (ECS) entra por **Security Group (SG→SG)** con
    `app_security_group_id`, sin whitelisting de IPs. La contraseña maestra la administra RDS en
    **Secrets Manager**. Las migraciones se aplican aparte con Liquibase, desde **dentro de la
