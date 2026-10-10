@@ -58,5 +58,10 @@ política de sincronización** entre la inspección y las instancias (ver abajo)
 8. **Importes.** Se guardan `NUMERIC(14,2)`; la API los expone como texto decimal. Confirmar
    redondeo y moneda por defecto (`MXN`).
 
-9. **Despliegue AWS.** Cuando toque: RDS PostgreSQL + correr los changesets con Liquibase.
-   Definir si se agrega IaC (Terraform/CDK) o solo scripts.
+9. **Despliegue AWS.** Resuelto con Terraform: `terraform/` crea una **VPC compartida** y una
+   **RDS PostgreSQL privada**; la app (ECS) entra por **Security Group (SG→SG)** con
+   `app_security_group_id`, sin whitelisting de IPs. La contraseña maestra la administra RDS en
+   **Secrets Manager**. Las migraciones se aplican aparte con Liquibase, desde **dentro de la
+   VPC** o por **túnel** (la BD es privada, sin IP pública). Pendiente: mover el state a
+   S3+DynamoDB si lo administra más de una persona y endurecer para producción (`multi_az`,
+   `deletion_protection`, backups ≥ 7 días).

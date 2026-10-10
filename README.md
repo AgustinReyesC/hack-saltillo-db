@@ -51,7 +51,7 @@ Valores por defecto (puedes cambiarlos en `.env`):
 | `POSTGRES_DB` | `inventario` | Nombre de la base. |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` | `inventario` | Credenciales locales. |
 | `POSTGRES_PORT` | `5432` | Puerto expuesto en tu máquina. |
-| `LIQUIBASE_CONTEXTS` | `seed` | `seed` = esquema + datos de ejemplo; vacío = solo esquema. |
+| `LIQUIBASE_CONTEXT_FILTER` | `seed` | `seed` = esquema + datos de ejemplo; otro valor (p. ej. `base`) = solo esquema. |
 
 **3. Levantar la base de datos**
 
@@ -129,8 +129,8 @@ docker compose down -v && docker compose up -d
 
 ### Variantes
 
-- **Solo el esquema, sin datos de ejemplo**: en `.env` deja `LIQUIBASE_CONTEXTS=` y corre
-  `docker compose run --rm liquibase`.
+- **Solo el esquema, sin datos de ejemplo**: en `.env` pon `LIQUIBASE_CONTEXT_FILTER=base`
+  (cualquier valor distinto de `seed`) y corre `docker compose run --rm liquibase`.
 - **Sin Docker** (Postgres propio + Liquibase CLI, desde la raíz del repo):
 
   ```bash
@@ -156,6 +156,10 @@ liquibase/
     seed/                     Datos: referencia (siempre), muestra y catálogo generado (contexto `seed`)
 scripts/
   generate_catalog_seed.py    Regenera el catálogo desde events.jsonl del kit
+terraform/                    Infra en AWS (RDS PostgreSQL) con Terraform
+  main.tf                     VPC, subredes, Security Group y RDS
+  variables.tf                Variables (región, red, base, costos)
+  outputs.tf                  Endpoint, JDBC y ARN del secreto
 ```
 
 ## Modelo de datos
@@ -273,8 +277,24 @@ python scripts/generate_catalog_seed.py --events "..\..\hackaton-inventarios\dat
 - **Orden entre tópicos**: `event_inbox` permite reintentar/encolar eventos que llegan antes
   que sus dependencias.
 
+## Despliegue en AWS (Terraform)
+
+La carpeta [`terraform/`](terraform/README.md) crea una **VPC compartida** y una **RDS
+PostgreSQL privada**. La app (**ECS**) se conecta por **Security Group (SG→SG)**: adjunta
+`app_security_group_id` a las tareas y listo, sin manejar IPs. La contraseña maestra la
+administra RDS en **AWS Secrets Manager**.
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init && terraform apply
+```
+
+Salidas para el ECS: `vpc_id`, `private_subnet_ids`, `app_security_group_id`, `db_address`.
+Detalle en [`terraform/README.md`](terraform/README.md).
+
 ## Estado y pendientes
 
-- Despliegue en AWS (RDS) queda **para después**; por ahora solo local.
+- El despliegue en AWS usa **Terraform (RDS PostgreSQL)**; ver [`terraform/`](terraform/README.md).
 - El consumidor de Kafka, la API y el agente son repos aparte y consumen este esquema.
 - No se modifica el simulador ni el formato de los eventos de entrada.

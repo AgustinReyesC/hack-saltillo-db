@@ -47,11 +47,16 @@ docker compose down -v && docker compose up -d
 
 ## Contextos de Liquibase
 
-- `LIQUIBASE_CONTEXTS=seed` (por defecto): aplica esquema **y** datos de ejemplo.
-- `LIQUIBASE_CONTEXTS=` (vacío): solo esquema + datos de referencia (unidades y estados).
+Liquibase aplica **todos** los changesets por defecto (esquema + datos de ejemplo). Los datos de
+ejemplo están etiquetados con `context:seed`; los de esquema no tienen contexto (siempre se
+aplican). Con el flag `--context-filter`:
+
+- `--context-filter=seed` (por defecto en `docker-compose`): esquema **y** datos de ejemplo.
+- `--context-filter=base` (cualquier valor distinto de `seed`): solo esquema + datos de
+  referencia (unidades y estados).
 
 Los datos de referencia (`seed/001_reference.sql`) no llevan contexto y siempre se aplican;
-la muestra y el catálogo generado llevan `context:seed`.
+la muestra, las instancias y el catálogo generado llevan `context:seed`.
 
 ## Cómo crear una migración
 

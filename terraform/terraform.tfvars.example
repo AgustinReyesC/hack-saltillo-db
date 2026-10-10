@@ -1,0 +1,29 @@
+# Copia este archivo a terraform.tfvars y ajusta los valores.
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# terraform.tfvars está en .gitignore (no lo subas al repo).
+
+aws_region  = "us-east-1"
+project     = "hack-saltillo-db"
+environment = "dev"
+
+# La app (ECS) entra por Security Group: NO necesita IPs.
+# admin_cidrs es SOLO para acceso directo opcional (no aplica con la BD privada; usa túnel/ECS).
+admin_cidrs = []
+
+# NAT para que las tareas ECS en subredes privadas tengan internet (~$32/mes).
+# false si pondrás el ECS en subredes públicas con IP pública.
+create_nat_gateway = false
+
+# Base de datos
+db_name            = "inventario"
+db_master_username = "inventario"
+db_instance_class  = "db.t4g.micro"
+db_allocated_storage = 20
+db_engine_version  = "16"
+
+# Costos / robustez
+multi_az                = false
+backup_retention_period = 1
+deletion_protection     = false
+skip_final_snapshot     = true

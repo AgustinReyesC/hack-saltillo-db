@@ -16,6 +16,17 @@ __pycache__/
 .venv/
 venv/
 
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+terraform/*.tfvars
+terraform/*.tfvars.json
+!terraform/terraform.tfvars.example
+terraform/.terraform.tfstate.lock.info
+
 # Editores / SO
 .vscode/
 .idea/

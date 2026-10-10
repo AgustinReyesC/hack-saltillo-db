@@ -41,11 +41,10 @@ services:
       LIQUIBASE_COMMAND_PASSWORD: ${POSTGRES_PASSWORD:-inventario}
       LIQUIBASE_COMMAND_CHANGELOG_FILE: db.changelog-master.yaml
       LIQUIBASE_SEARCH_PATH: /liquibase/changelog
-      LIQUIBASE_CONTEXTS: ${LIQUIBASE_CONTEXTS:-seed}
       LIQUIBASE_LOG_LEVEL: ${LIQUIBASE_LOG_LEVEL:-info}
     volumes:
       - ./liquibase/changelog:/liquibase/changelog:ro
-    command: ["update"]
+    command: ["update", "--context-filter=${LIQUIBASE_CONTEXT_FILTER:-seed}"]
     restart: "no"
 
 volumes:
